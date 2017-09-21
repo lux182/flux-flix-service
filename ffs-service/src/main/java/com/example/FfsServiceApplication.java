@@ -1,14 +1,11 @@
 package com.example;
 
 import lombok.*;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.event.*;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import org.springframework.http.MediaType;
@@ -26,16 +23,17 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.reactive.function.server.*;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.RouterFunctions;
+import org.springframework.web.reactive.function.server.ServerRequest;
+import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
 
 import java.time.Duration;
-import java.util.*;
-import java.util.stream.Stream;
+import java.util.Date;
 
-import static org.springframework.web.reactive.function.server.RequestPredicates.*;
+import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
 
 @SpringBootApplication
 public class FfsServiceApplication {
@@ -62,12 +60,12 @@ class UserHandler {
     Mono<ServerResponse> current(ServerRequest request) {
         return ServerResponse.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(request.principal()
+                .body(
+                        request.principal()
                                 .cast(Authentication.class)
                                 .map(Authentication::getPrincipal)
                                 .cast(UserDetails.class),
-                        UserDetails.class
-                );
+                        UserDetails.class);
     }
 }
 
@@ -124,7 +122,6 @@ class FluxFlixRestController {
     Flux<Movie> all() {
         return fluxFlixService.all();
     }
-
 }
 
 @Configuration
@@ -140,15 +137,11 @@ class SecurityConfiguration {
 
     @Bean
     SecurityWebFilterChain securityWebFilterChain(HttpSecurity httpSecurity) {
-        return httpSecurity
-                .authorizeExchange()
-                .anyExchange().hasRole("ADMIN").and()
-                .build();
-
+        return httpSecurity.authorizeExchange().anyExchange().hasRole("ADMIN").and().build();
     }
 }
 
-
+/** 启动初始化 */
 @Component
 class DataAppInitializr {
 
@@ -160,39 +153,44 @@ class DataAppInitializr {
         this.movieRepository
                 .deleteAll()
                 .thenMany(
-                        Flux
-                                .just("Foo", "Bar")
+                        Flux.just("Foo", "Bar")
                                 .flatMap(title -> this.movieRepository.save(new Movie(title))))
-                .subscribe(null, null,
+                .subscribe(
+                        null,
+                        null,
                         () -> this.movieRepository.findAll().subscribe(System.out::println));
-
-
     }
 
     DataAppInitializr(MovieRepository movieRepository) {
         this.movieRepository = movieRepository;
     }
-
 }
-
 
 @Configuration
 class WebConfiguration {
 
     @Bean
     RouterFunction<?> routes(FluxFlixService ffs, UserHandler uh) {
-        return RouterFunctions
-                
-                .route(GET("/movies"),
+        return RouterFunctions.route(
+                        GET("/movies"),
                         serverRequest -> ServerResponse.ok().body(ffs.all(), Movie.class))
-                .andRoute(GET("/movies/{id}"),
-                        serverRequest -> ServerResponse.ok().body(ffs.byId(serverRequest.pathVariable("id")), Movie.class))
-                .andRoute(GET("/movies/{id}/events"), serverRequest ->
-                        ServerResponse.ok()
-                                .contentType(MediaType.TEXT_EVENT_STREAM)
-                                .body(ffs.events(serverRequest.pathVariable("id")), MovieEvent.class))
-                 .andRoute(GET("/users/me"), uh::current)
-                 .andRoute(GET("/users/{username}"), uh::byUsername);
+                .andRoute(
+                        GET("/movies/{id}"),
+                        serverRequest ->
+                                ServerResponse.ok()
+                                        .body(
+                                                ffs.byId(serverRequest.pathVariable("id")),
+                                                Movie.class))
+                .andRoute(
+                        GET("/movies/{id}/events"),
+                        serverRequest ->
+                                ServerResponse.ok()
+                                        .contentType(MediaType.TEXT_EVENT_STREAM)
+                                        .body(
+                                                ffs.events(serverRequest.pathVariable("id")),
+                                                MovieEvent.class))
+                .andRoute(GET("/users/me"), uh::current)
+                .andRoute(GET("/users/{username}"), uh::byUsername);
     }
 }
 
@@ -218,8 +216,7 @@ class FluxFlixService {
     }
 }
 
-interface MovieRepository extends ReactiveMongoRepository<Movie, String> {
-}
+interface MovieRepository extends ReactiveMongoRepository<Movie, String> {}
 
 @Document
 @Data
@@ -227,8 +224,7 @@ interface MovieRepository extends ReactiveMongoRepository<Movie, String> {
 @RequiredArgsConstructor
 class Movie {
     private String id;
-    @NonNull
-    private String title;
+    @NonNull private String title;
 }
 
 @Data
