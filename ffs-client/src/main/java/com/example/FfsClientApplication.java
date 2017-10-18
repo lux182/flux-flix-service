@@ -25,17 +25,17 @@ public class FfsClientApplication {
     @Bean
     CommandLineRunner demo(WebClient client) {
         return strings ->
-                client
-                        .get()
+                client.get()
                         .uri("")
                         .retrieve()
                         .bodyToFlux(Movie.class)
                         .filter(movie -> movie.getTitle().equalsIgnoreCase("aeon flux"))
-                        .flatMap(movie ->
-                                client.get()
-                                        .uri("/{id}/events", movie.getId())
-                                        .retrieve()
-                                        .bodyToFlux(MovieEvent.class))
+                        .flatMap(
+                                movie ->
+                                        client.get()
+                                                .uri("/{id}/events", movie.getId())
+                                                .retrieve()
+                                                .bodyToFlux(MovieEvent.class))
                         .subscribe(movieEvent -> log.info(movieEvent.toString()));
     }
 
@@ -43,7 +43,6 @@ public class FfsClientApplication {
         SpringApplication.run(FfsClientApplication.class, args);
     }
 }
-
 
 @Data
 @AllArgsConstructor
